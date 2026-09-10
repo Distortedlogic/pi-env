@@ -1,0 +1,14 @@
+{
+  "name": "pi-project-env",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Load global and trusted project dotenv files into pi.",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "engines": { "node": ">=22.19.0" },
+  "files": ["index.ts", "README.md", "LICENSE"],
+  "pi": { "extensions": ["./index.ts"] },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": ">=0.84.4 <1" },
+  "dependencies": { "dotenv": "17.4.2" }
+}

@@ -4,11 +4,37 @@
   "private": true,
   "description": "Load global and trusted project dotenv files into pi.",
   "type": "module",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "license": "MIT",
-  "engines": { "node": ">=22.19.0" },
-  "files": ["index.ts", "README.md", "LICENSE"],
-  "pi": { "extensions": ["./index.ts"] },
-  "peerDependencies": { "@earendil-works/pi-coding-agent": ">=0.85.1 <1" },
-  "dependencies": { "dotenv": "17.4.2" }
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "check": "npm run typecheck && npm run lint",
+    "lint": "biome check .",
+    "typecheck": "tsc"
+  },
+  "files": [
+    "index.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.85.1 <1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "dotenv": "17.4.2"
+  }
 }

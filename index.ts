@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { CONFIG_DIR_NAME, getAgentDir, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { parse } from "dotenv";
 
 export default function (pi: ExtensionAPI) {
@@ -53,13 +53,14 @@ export default function (pi: ExtensionAPI) {
 				process.env[key] = value;
 				loaded.set(key, value);
 			}
-		} catch {
+		} catch (error) {
 			restore();
 			const message = currentPath
 				? `Cannot load ${currentPath}. Check its format and read access.`
 				: "Cannot apply environment variables.";
 			if (ctx.hasUI) ctx.ui.notify(message, "error");
 			else console.error(message);
+			throw error;
 		}
 	});
 }

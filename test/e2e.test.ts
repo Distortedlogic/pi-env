@@ -39,8 +39,22 @@ test("Pi loads trusted project environment without replacing existing process va
 	});
 	await client.start();
 
-	const result = await client.bash(`printf '%s|%s' "$${loadedKey}" "$${preservedKey}"`);
+	const messages = await client.getMessages();
+	const keyMessage = messages.find((message) => message.role === "custom" && message.customType === "project-env-keys");
+	assert.ok(keyMessage);
+	if (keyMessage.role !== "custom" || typeof keyMessage.content !== "string") {
+		assert.fail("Expected a key-only custom context message");
+	}
+	assert.ok(keyMessage.content.includes("Global:"));
+	assert.ok(keyMessage.content.includes("Project:"));
+	assert.ok(keyMessage.content.includes(`- ${loadedKey}`));
+	assert.ok(keyMessage.content.includes(`- ${preservedKey}`));
+	assert.ok(!keyMessage.content.includes("from-dotenv"));
+	assert.ok(!keyMessage.content.includes("from-settings"));
+	assert.ok(!keyMessage.content.includes("from-project"));
+	assert.ok(!keyMessage.content.includes("from-process"));
 
+	const result = await client.bash(`printf '%s|%s' "$${loadedKey}" "$${preservedKey}"`);
 	assert.equal(result.exitCode, 0);
 	assert.equal(result.output, "from-settings|from-process");
 });

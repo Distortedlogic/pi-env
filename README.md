@@ -29,7 +29,9 @@ Untrusted projects cannot supply project dotenv or settings values. Missing file
 
 The extension removes its own unchanged values on shutdown, including reload and session changes. This lets `/reload` apply file edits and prevents old project values from remaining after a session switch. It leaves inherited values and values changed by other code alone.
 
-All files are read before values are applied. File read and JSON errors stop the load. Error notices contain paths, not file contents or variable values. No environment values are added to chat history.
+All files are read before values are applied. File read and JSON errors stop the load. Error notices contain paths, not file contents or variable values.
+
+The extension adds one hidden context message that lists the available global and trusted-project variable names by scope. It never adds environment variable values to agent context or chat history.
 
 Loading occurs at `session_start`, not while other extension factories run. Restart pi if another component reads its environment only once at process startup.
 

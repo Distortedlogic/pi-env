@@ -25,15 +25,17 @@ test("collectEnvironment applies file precedence and ignores non-string settings
 		),
 	]);
 
-	const values = await collectEnvironment(project, agentDir, true);
+	const environment = await collectEnvironment(project, agentDir, true);
 
-	assert.deepEqual(Object.fromEntries(values), {
+	assert.deepEqual(Object.fromEntries(environment.values), {
 		SHARED: "project-settings",
 		GLOBAL_DOTENV: "yes",
 		PROJECT_DOTENV: "yes",
 		GLOBAL_SETTINGS: "yes",
 		PROJECT_SETTINGS: "yes",
 	});
+	assert.deepEqual(environment.globalKeys, ["GLOBAL_DOTENV", "GLOBAL_SETTINGS", "SHARED"]);
+	assert.deepEqual(environment.projectKeys, ["PROJECT_DOTENV", "PROJECT_SETTINGS", "SHARED"]);
 });
 
 test("collectEnvironment does not read project files without trust", async (t) => {
@@ -48,9 +50,11 @@ test("collectEnvironment does not read project files without trust", async (t) =
 		writeFile(join(project, CONFIG_DIR_NAME, "settings.json"), "not json"),
 	]);
 
-	const values = await collectEnvironment(project, agentDir, false);
+	const environment = await collectEnvironment(project, agentDir, false);
 
-	assert.deepEqual(Object.fromEntries(values), { GLOBAL_ONLY: "yes" });
+	assert.deepEqual(Object.fromEntries(environment.values), { GLOBAL_ONLY: "yes" });
+	assert.deepEqual(environment.globalKeys, ["GLOBAL_ONLY"]);
+	assert.deepEqual(environment.projectKeys, []);
 });
 
 test("collectEnvironment reports the path of malformed settings", async (t) => {

@@ -3,14 +3,26 @@ import { join } from "node:path";
 import { CONFIG_DIR_NAME, type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { parse } from "dotenv";
 
+const CUSTOM_TYPE = "project-env-keys";
+
 export async function collectEnvironment(cwd: string, agentDir: string, projectTrusted: boolean) {
 	const files = [
-		{ path: join(agentDir, ".env"), format: "dotenv" as const },
-		...(projectTrusted ? [{ path: join(cwd, ".env"), format: "dotenv" as const }] : []),
-		{ path: join(agentDir, "settings.json"), format: "settings" as const },
-		...(projectTrusted ? [{ path: join(cwd, CONFIG_DIR_NAME, "settings.json"), format: "settings" as const }] : []),
+		{ path: join(agentDir, ".env"), format: "dotenv" as const, scope: "global" as const },
+		...(projectTrusted ? [{ path: join(cwd, ".env"), format: "dotenv" as const, scope: "project" as const }] : []),
+		{ path: join(agentDir, "settings.json"), format: "settings" as const, scope: "global" as const },
+		...(projectTrusted
+			? [
+					{
+						path: join(cwd, CONFIG_DIR_NAME, "settings.json"),
+						format: "settings" as const,
+						scope: "project" as const,
+					},
+				]
+			: []),
 	];
 	const values = new Map<string, string>();
+	const globalKeys = new Set<string>();
+	const projectKeys = new Set<string>();
 
 	for (const file of files) {
 		let contents: string;
@@ -29,11 +41,18 @@ export async function collectEnvironment(cwd: string, agentDir: string, projectT
 		}
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
 		for (const [key, value] of Object.entries(parsed)) {
-			if (typeof value === "string") values.set(key, value);
+			if (typeof value !== "string") continue;
+			values.set(key, value);
+			if (file.scope === "global") globalKeys.add(key);
+			else projectKeys.add(key);
 		}
 	}
 
-	return values;
+	return {
+		values,
+		globalKeys: [...globalKeys].sort(),
+		projectKeys: [...projectKeys].sort(),
+	};
 }
 
 export default function (pi: ExtensionAPI) {
@@ -50,11 +69,32 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		restore();
 		try {
-			const values = await collectEnvironment(ctx.cwd, getAgentDir(), ctx.isProjectTrusted());
-			for (const [key, value] of values) {
+			const environment = await collectEnvironment(ctx.cwd, getAgentDir(), ctx.isProjectTrusted());
+			for (const [key, value] of environment.values) {
 				if (process.env[key] !== undefined) continue;
 				process.env[key] = value;
 				loaded.set(key, value);
+			}
+
+			const hasKeyContext = ctx.sessionManager
+				.buildContextEntries()
+				.some(
+					(entry) =>
+						entry.type === "message" && entry.message.role === "custom" && entry.message.customType === CUSTOM_TYPE,
+				);
+			if (!hasKeyContext && environment.globalKeys.length + environment.projectKeys.length > 0) {
+				const content = [
+					"Environment variable keys available to commands and tools:",
+					"",
+					"Global:",
+					...(environment.globalKeys.length > 0 ? environment.globalKeys.map((key) => `- ${key}`) : ["- (none)"]),
+					"",
+					"Project:",
+					...(environment.projectKeys.length > 0 ? environment.projectKeys.map((key) => `- ${key}`) : ["- (none)"]),
+					"",
+					"Values are intentionally omitted.",
+				].join("\n");
+				pi.sendMessage({ customType: CUSTOM_TYPE, content, display: false }, { triggerTurn: false });
 			}
 		} catch (error) {
 			restore();

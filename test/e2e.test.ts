@@ -40,7 +40,7 @@ test("Pi loads trusted project environment without replacing existing process va
 	await client.start();
 
 	const messages = await client.getMessages();
-	const keyMessage = messages.find((message) => message.role === "custom" && message.customType === "project-env-keys");
+	const keyMessage = messages.find((message) => message.role === "custom" && message.customType === "pi-env/keys");
 	assert.ok(keyMessage);
 	if (keyMessage.role !== "custom" || typeof keyMessage.content !== "string") {
 		assert.fail("Expected a key-only custom context message");

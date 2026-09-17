@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { CONFIG_DIR_NAME, type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { parse } from "dotenv";
 
-const CUSTOM_TYPE = "project-env-keys";
+const CUSTOM_TYPE = "pi-env/keys";
 
 export async function collectEnvironment(cwd: string, agentDir: string, projectTrusted: boolean) {
 	const files = [

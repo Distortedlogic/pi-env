@@ -14,7 +14,7 @@ const cliPath = join(dirname(codingAgentEntry), "cli.js");
 test("Pi loads trusted project environment without replacing existing process values", {
 	timeout: 20_000,
 }, async (t) => {
-	const project = await mkdtemp(join(tmpdir(), "pi-project-env-e2e-"));
+	const project = await mkdtemp(join(tmpdir(), "pi-env-e2e-"));
 	await mkdir(join(project, CONFIG_DIR_NAME));
 	const suffix = randomUUID().replaceAll("-", "").toUpperCase();
 	const loadedKey = `PI_PROJECT_ENV_LOADED_${suffix}`;

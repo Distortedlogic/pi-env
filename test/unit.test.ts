@@ -7,7 +7,7 @@ import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { collectEnvironment } from "../index.ts";
 
 test("collectEnvironment applies file precedence and ignores non-string settings", async (t) => {
-	const root = await mkdtemp(join(tmpdir(), "pi-project-env-unit-"));
+	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
 	t.after(async () => rm(root, { recursive: true, force: true }));
 	const agentDir = join(root, "agent");
 	const project = join(root, "project");
@@ -39,7 +39,7 @@ test("collectEnvironment applies file precedence and ignores non-string settings
 });
 
 test("collectEnvironment does not read project files without trust", async (t) => {
-	const root = await mkdtemp(join(tmpdir(), "pi-project-env-unit-"));
+	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
 	t.after(async () => rm(root, { recursive: true, force: true }));
 	const agentDir = join(root, "agent");
 	const project = join(root, "project");
@@ -58,7 +58,7 @@ test("collectEnvironment does not read project files without trust", async (t) =
 });
 
 test("collectEnvironment reports the path of malformed settings", async (t) => {
-	const root = await mkdtemp(join(tmpdir(), "pi-project-env-unit-"));
+	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
 	t.after(async () => rm(root, { recursive: true, force: true }));
 	const agentDir = join(root, "agent");
 	const project = join(root, "project");

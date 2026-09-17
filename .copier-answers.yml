@@ -1,0 +1,4 @@
+_commit: 8510bec
+_src_path: /home/entropybender/pi-extensions
+project_description: Load global and trusted project dotenv files into pi.
+project_name: pi-env

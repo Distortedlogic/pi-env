@@ -1,24 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { CONFIG_DIR_NAME, type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { parse } from "dotenv";
 
 const CUSTOM_TYPE = "pi-env/keys";
 
 export async function collectEnvironment(cwd: string, agentDir: string, projectTrusted: boolean) {
 	const files = [
-		{ path: join(agentDir, ".env"), format: "dotenv" as const, scope: "global" as const },
-		...(projectTrusted ? [{ path: join(cwd, ".env"), format: "dotenv" as const, scope: "project" as const }] : []),
-		{ path: join(agentDir, "settings.json"), format: "settings" as const, scope: "global" as const },
-		...(projectTrusted
-			? [
-					{
-						path: join(cwd, CONFIG_DIR_NAME, "settings.json"),
-						format: "settings" as const,
-						scope: "project" as const,
-					},
-				]
-			: []),
+		{ path: join(agentDir, ".env"), scope: "global" as const },
+		...(projectTrusted ? [{ path: join(cwd, ".env"), scope: "project" as const }] : []),
 	];
 	const values = new Map<string, string>();
 	const globalKeys = new Set<string>();
@@ -33,15 +23,13 @@ export async function collectEnvironment(cwd: string, agentDir: string, projectT
 			throw new Error(`Cannot load ${file.path}. Check its format and read access.`, { cause: error });
 		}
 
-		let parsed: unknown;
+		let parsed: Record<string, string>;
 		try {
-			parsed = file.format === "settings" ? (JSON.parse(contents) as { env?: unknown } | null)?.env : parse(contents);
+			parsed = parse(contents);
 		} catch (error) {
 			throw new Error(`Cannot load ${file.path}. Check its format and read access.`, { cause: error });
 		}
-		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
 		for (const [key, value] of Object.entries(parsed)) {
-			if (typeof value !== "string") continue;
 			values.set(key, value);
 			if (file.scope === "global") globalKeys.add(key);
 			else projectKeys.add(key);
@@ -55,26 +43,33 @@ export async function collectEnvironment(cwd: string, agentDir: string, projectT
 	};
 }
 
-export default function (pi: ExtensionAPI) {
+export function applyEnvironment(
+	values: ReadonlyMap<string, string>,
+	target: NodeJS.ProcessEnv = process.env,
+): () => void {
 	const loaded = new Map<string, string>();
-
-	const restore = () => {
+	for (const [key, value] of values) {
+		if (target[key] !== undefined) continue;
+		target[key] = value;
+		loaded.set(key, value);
+	}
+	return () => {
 		for (const [key, value] of loaded) {
-			if (process.env[key] === value) delete process.env[key];
+			if (target[key] === value) delete target[key];
 		}
 		loaded.clear();
 	};
+}
 
-	pi.on("session_shutdown", restore);
+export default function (pi: ExtensionAPI) {
+	let restore = () => {};
+
+	pi.on("session_shutdown", () => restore());
 	pi.on("session_start", async (_event, ctx) => {
 		restore();
 		try {
 			const environment = await collectEnvironment(ctx.cwd, getAgentDir(), ctx.isProjectTrusted());
-			for (const [key, value] of environment.values) {
-				if (process.env[key] !== undefined) continue;
-				process.env[key] = value;
-				loaded.set(key, value);
-			}
+			restore = applyEnvironment(environment.values);
 
 			const hasKeyContext = ctx.sessionManager
 				.buildContextEntries()

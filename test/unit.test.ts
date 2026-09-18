@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
-import { collectEnvironment } from "../index.ts";
+import { applyEnvironment, collectEnvironment } from "../src/index.ts";
 
-test("collectEnvironment applies file precedence and ignores non-string settings", async (t) => {
+test("collectEnvironment applies global then project dotenv precedence and ignores settings", async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
 	t.after(async () => rm(root, { recursive: true, force: true }));
 	const agentDir = join(root, "agent");
@@ -15,39 +15,30 @@ test("collectEnvironment applies file precedence and ignores non-string settings
 	await Promise.all([
 		writeFile(join(agentDir, ".env"), "SHARED=global-dotenv\nGLOBAL_DOTENV=yes\n"),
 		writeFile(join(project, ".env"), "SHARED=project-dotenv\nPROJECT_DOTENV=yes\n"),
-		writeFile(
-			join(agentDir, "settings.json"),
-			JSON.stringify({ env: { SHARED: "global-settings", GLOBAL_SETTINGS: "yes", IGNORED: 42 } }),
-		),
-		writeFile(
-			join(project, CONFIG_DIR_NAME, "settings.json"),
-			JSON.stringify({ env: { SHARED: "project-settings", PROJECT_SETTINGS: "yes" } }),
-		),
+		writeFile(join(agentDir, "settings.json"), JSON.stringify({ env: { SHARED: "global-settings" } })),
+		writeFile(join(project, CONFIG_DIR_NAME, "settings.json"), "not json"),
 	]);
 
 	const environment = await collectEnvironment(project, agentDir, true);
 
 	assert.deepEqual(Object.fromEntries(environment.values), {
-		SHARED: "project-settings",
+		SHARED: "project-dotenv",
 		GLOBAL_DOTENV: "yes",
 		PROJECT_DOTENV: "yes",
-		GLOBAL_SETTINGS: "yes",
-		PROJECT_SETTINGS: "yes",
 	});
-	assert.deepEqual(environment.globalKeys, ["GLOBAL_DOTENV", "GLOBAL_SETTINGS", "SHARED"]);
-	assert.deepEqual(environment.projectKeys, ["PROJECT_DOTENV", "PROJECT_SETTINGS", "SHARED"]);
+	assert.deepEqual(environment.globalKeys, ["GLOBAL_DOTENV", "SHARED"]);
+	assert.deepEqual(environment.projectKeys, ["PROJECT_DOTENV", "SHARED"]);
 });
 
-test("collectEnvironment does not read project files without trust", async (t) => {
+test("collectEnvironment does not read a project dotenv file without trust", async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
 	t.after(async () => rm(root, { recursive: true, force: true }));
 	const agentDir = join(root, "agent");
 	const project = join(root, "project");
-	await Promise.all([mkdir(agentDir), mkdir(join(project, CONFIG_DIR_NAME), { recursive: true })]);
+	await Promise.all([mkdir(agentDir), mkdir(project)]);
 	await Promise.all([
 		writeFile(join(agentDir, ".env"), "GLOBAL_ONLY=yes\n"),
 		writeFile(join(project, ".env"), "PROJECT_ONLY=no\n"),
-		writeFile(join(project, CONFIG_DIR_NAME, "settings.json"), "not json"),
 	]);
 
 	const environment = await collectEnvironment(project, agentDir, false);
@@ -57,16 +48,26 @@ test("collectEnvironment does not read project files without trust", async (t) =
 	assert.deepEqual(environment.projectKeys, []);
 });
 
-test("collectEnvironment reports the path of malformed settings", async (t) => {
-	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
-	t.after(async () => rm(root, { recursive: true, force: true }));
-	const agentDir = join(root, "agent");
-	const project = join(root, "project");
-	const settingsPath = join(project, CONFIG_DIR_NAME, "settings.json");
-	await Promise.all([mkdir(agentDir), mkdir(join(project, CONFIG_DIR_NAME), { recursive: true })]);
-	await writeFile(settingsPath, "not json");
+test("applyEnvironment preserves process values and removes only unchanged loaded values", () => {
+	const target: NodeJS.ProcessEnv = { PRESERVED: "from-process" };
+	const restore = applyEnvironment(
+		new Map([
+			["PRESERVED", "from-dotenv"],
+			["LOADED", "from-dotenv"],
+			["CHANGED", "from-dotenv"],
+		]),
+		target,
+	);
 
-	await assert.rejects(collectEnvironment(project, agentDir, true), {
-		message: `Cannot load ${settingsPath}. Check its format and read access.`,
+	assert.deepEqual(target, {
+		PRESERVED: "from-process",
+		LOADED: "from-dotenv",
+		CHANGED: "from-dotenv",
+	});
+	target.CHANGED = "changed-later";
+	restore();
+	assert.deepEqual(target, {
+		PRESERVED: "from-process",
+		CHANGED: "changed-later",
 	});
 });

@@ -78,10 +78,7 @@ export default function (pi: ExtensionAPI) {
 
 			const hasKeyContext = ctx.sessionManager
 				.buildContextEntries()
-				.some(
-					(entry) =>
-						entry.type === "message" && entry.message.role === "custom" && entry.message.customType === CUSTOM_TYPE,
-				);
+				.some((entry) => entry.type === "custom_message" && entry.customType === CUSTOM_TYPE);
 			if (!hasKeyContext && environment.globalKeys.length + environment.projectKeys.length > 0) {
 				const content = [
 					"Environment variable keys available to commands and tools:",

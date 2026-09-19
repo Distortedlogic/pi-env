@@ -6,7 +6,7 @@ import test from "node:test";
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { applyEnvironment, collectEnvironment } from "../src/index.ts";
 
-test("collectEnvironment applies global then project dotenv precedence and ignores settings", async (t) => {
+test("collectEnvironment applies trust, precedence, and ignores settings files", async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
 	t.after(async () => rm(root, { recursive: true, force: true }));
 	const agentDir = join(root, "agent");
@@ -19,33 +19,22 @@ test("collectEnvironment applies global then project dotenv precedence and ignor
 		writeFile(join(project, CONFIG_DIR_NAME, "settings.json"), "not json"),
 	]);
 
-	const environment = await collectEnvironment(project, agentDir, true);
-
-	assert.deepEqual(Object.fromEntries(environment.values), {
+	const trusted = await collectEnvironment(project, agentDir, true);
+	assert.deepEqual(Object.fromEntries(trusted.values), {
 		SHARED: "project-dotenv",
 		GLOBAL_DOTENV: "yes",
 		PROJECT_DOTENV: "yes",
 	});
-	assert.deepEqual(environment.globalKeys, ["GLOBAL_DOTENV", "SHARED"]);
-	assert.deepEqual(environment.projectKeys, ["PROJECT_DOTENV", "SHARED"]);
-});
+	assert.deepEqual(trusted.globalKeys, ["GLOBAL_DOTENV", "SHARED"]);
+	assert.deepEqual(trusted.projectKeys, ["PROJECT_DOTENV", "SHARED"]);
 
-test("collectEnvironment does not read a project dotenv file without trust", async (t) => {
-	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
-	t.after(async () => rm(root, { recursive: true, force: true }));
-	const agentDir = join(root, "agent");
-	const project = join(root, "project");
-	await Promise.all([mkdir(agentDir), mkdir(project)]);
-	await Promise.all([
-		writeFile(join(agentDir, ".env"), "GLOBAL_ONLY=yes\n"),
-		writeFile(join(project, ".env"), "PROJECT_ONLY=no\n"),
-	]);
-
-	const environment = await collectEnvironment(project, agentDir, false);
-
-	assert.deepEqual(Object.fromEntries(environment.values), { GLOBAL_ONLY: "yes" });
-	assert.deepEqual(environment.globalKeys, ["GLOBAL_ONLY"]);
-	assert.deepEqual(environment.projectKeys, []);
+	const untrusted = await collectEnvironment(project, agentDir, false);
+	assert.deepEqual(Object.fromEntries(untrusted.values), {
+		SHARED: "global-dotenv",
+		GLOBAL_DOTENV: "yes",
+	});
+	assert.deepEqual(untrusted.globalKeys, ["GLOBAL_DOTENV", "SHARED"]);
+	assert.deepEqual(untrusted.projectKeys, []);
 });
 
 test("applyEnvironment preserves process values and removes only unchanged loaded values", () => {

@@ -37,9 +37,9 @@
 		"@earendil-works/pi-coding-agent": ">=0.85.1 <1"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.5.14",
-		"@types/node": "^22.10.0",
-		"typescript": "^5.9.0"
+		"@biomejs/biome": "2.5.14",
+		"@types/node": "22.10.0",
+		"typescript": "5.9.0"
 	},
 	"dependencies": {
 		"dotenv": "17.4.2"

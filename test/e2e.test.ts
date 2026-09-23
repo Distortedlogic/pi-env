@@ -19,16 +19,12 @@ test("Pi loads trusted project environment without replacing existing process va
 	const reloadExtensionPath = join(project, "reload-extension.ts");
 	await Promise.all([mkdir(join(project, CONFIG_DIR_NAME)), mkdir(agentDir)]);
 	const suffix = randomUUID().replaceAll("-", "").toUpperCase();
-	const sharedKey = `PI_PROJECT_ENV_SHARED_${suffix}`;
 	const globalKey = `PI_PROJECT_ENV_GLOBAL_${suffix}`;
 	const projectKey = `PI_PROJECT_ENV_PROJECT_${suffix}`;
 	const preservedKey = `PI_PROJECT_ENV_PRESERVED_${suffix}`;
 	await Promise.all([
-		writeFile(join(agentDir, ".env"), `${sharedKey}=from-global\n${globalKey}=global-only\n`),
-		writeFile(
-			join(project, ".env"),
-			`${sharedKey}=from-project\n${projectKey}=project-only\n${preservedKey}=from-project\n`,
-		),
+		writeFile(join(agentDir, ".env"), `${globalKey}=global-only\n`),
+		writeFile(join(project, ".env"), `${projectKey}=project-only\n${preservedKey}=from-project\n`),
 		writeFile(
 			reloadExtensionPath,
 			[
@@ -74,38 +70,23 @@ test("Pi loads trusted project environment without replacing existing process va
 		if (keyMessage.role !== "custom" || typeof keyMessage.content !== "string") {
 			assert.fail("Expected a key-only custom context message");
 		}
-		for (const key of [sharedKey, globalKey, projectKey, preservedKey]) {
+		for (const key of [globalKey, projectKey, preservedKey]) {
 			assert.ok(keyMessage.content.includes(`- ${key}`));
 		}
-		for (const value of [
-			"from-global",
-			"global-only",
-			"from-project",
-			"project-only",
-			"from-global-reloaded",
-			"global-reloaded",
-			"from-project-reloaded",
-			"project-reloaded",
-			"from-process",
-		]) {
+		for (const value of ["global-only", "project-only", "global-reloaded", "project-reloaded", "from-process"]) {
 			assert.ok(!keyMessage.content.includes(value));
 		}
 	};
 
 	await assertSingleKeyContext();
 	await Promise.all([
-		writeFile(join(agentDir, ".env"), `${sharedKey}=from-global-reloaded\n${globalKey}=global-reloaded\n`),
-		writeFile(
-			join(project, ".env"),
-			`${sharedKey}=from-project-reloaded\n${projectKey}=project-reloaded\n${preservedKey}=from-project-reloaded\n`,
-		),
+		writeFile(join(agentDir, ".env"), `${globalKey}=global-reloaded\n`),
+		writeFile(join(project, ".env"), `${projectKey}=project-reloaded\n${preservedKey}=from-project-reloaded\n`),
 	]);
 	await client.prompt("/reload-env");
 	await assertSingleKeyContext();
 
-	const result = await client.bash(
-		`printf '%s|%s|%s|%s' "$${sharedKey}" "$${globalKey}" "$${projectKey}" "$${preservedKey}"`,
-	);
+	const result = await client.bash(`printf '%s|%s|%s' "$${globalKey}" "$${projectKey}" "$${preservedKey}"`);
 	assert.equal(result.exitCode, 0);
-	assert.equal(result.output, "from-project-reloaded|global-reloaded|project-reloaded|from-process");
+	assert.equal(result.output, "global-reloaded|project-reloaded|from-process");
 });

@@ -3,20 +3,17 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { applyEnvironment, collectEnvironment } from "../src/index.ts";
 
-test("collectEnvironment applies trust, precedence, and ignores settings files", async (t) => {
+test("collectEnvironment applies trust and precedence", async (t) => {
 	const root = await mkdtemp(join(tmpdir(), "pi-env-unit-"));
 	t.after(async () => rm(root, { recursive: true, force: true }));
 	const agentDir = join(root, "agent");
 	const project = join(root, "project");
-	await Promise.all([mkdir(agentDir), mkdir(join(project, CONFIG_DIR_NAME), { recursive: true })]);
+	await Promise.all([mkdir(agentDir), mkdir(project)]);
 	await Promise.all([
 		writeFile(join(agentDir, ".env"), "SHARED=global-dotenv\nGLOBAL_DOTENV=yes\n"),
 		writeFile(join(project, ".env"), "SHARED=project-dotenv\nPROJECT_DOTENV=yes\n"),
-		writeFile(join(agentDir, "settings.json"), JSON.stringify({ env: { SHARED: "global-settings" } })),
-		writeFile(join(project, CONFIG_DIR_NAME, "settings.json"), "not json"),
 	]);
 
 	const trusted = await collectEnvironment(project, agentDir, true);

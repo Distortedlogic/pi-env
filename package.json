@@ -2,7 +2,6 @@
 	"name": "pi-env",
 	"version": "0.1.0",
 	"private": true,
-	"description": "Load global and trusted project dotenv files into pi.",
 	"type": "module",
 	"keywords": [
 		"pi-package"
@@ -17,6 +16,7 @@
 	},
 	"scripts": {
 		"check": "npm run typecheck && npm run lint && npm test",
+		"format": "biome check --write .",
 		"lint": "biome check .",
 		"test": "npm run test:unit && npm run test:e2e",
 		"test:e2e": "node --import tsx --test test/e2e.test.ts",
@@ -34,11 +34,12 @@
 		]
 	},
 	"peerDependencies": {
-		"@earendil-works/pi-coding-agent": "0.87.0"
+		"@earendil-works/pi-coding-agent": "0.87.1"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.14",
-		"@types/node": "22.10.0",
+		"@earendil-works/pi-coding-agent": "0.87.1",
+		"@types/node": "22.20.4",
 		"tsx": "4.23.15",
 		"typescript": "7.0.2"
 	},

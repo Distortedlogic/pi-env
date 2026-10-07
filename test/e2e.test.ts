@@ -90,3 +90,35 @@ test("Pi loads trusted project environment without replacing existing process va
 	assert.equal(result.exitCode, 0);
 	assert.equal(result.output, "global-reloaded|project-reloaded|from-process");
 });
+
+test("Pi excludes an untrusted project environment", { timeout: 20_000 }, async (t) => {
+	const project = await mkdtemp(join(tmpdir(), "pi-env-untrusted-"));
+	const agentDir = join(project, "agent");
+	await mkdir(agentDir);
+	const suffix = randomUUID().replaceAll("-", "").toUpperCase();
+	const globalKey = `PI_PROJECT_ENV_GLOBAL_${suffix}`;
+	const projectKey = `PI_PROJECT_ENV_PROJECT_${suffix}`;
+	await Promise.all([
+		writeFile(join(agentDir, ".env"), `${globalKey}=global-only\n`),
+		writeFile(join(project, ".env"), `${projectKey}=project-only\n`),
+	]);
+	const client = new RpcClient({
+		cliPath,
+		cwd: project,
+		env: { PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: "1" },
+		args: ["--no-approve", "--no-session", "--no-extensions", "--extension", extensionPath],
+	});
+	t.after(async () => {
+		await client.stop();
+		await rm(project, { recursive: true, force: true });
+	});
+	await client.start();
+
+	const messages = await client.getMessages();
+	const keyMessage = messages.find((message) => message.role === "custom" && message.customType === "pi-env/keys");
+	assert.ok(keyMessage && keyMessage.role === "custom" && typeof keyMessage.content === "string");
+	assert.ok(keyMessage.content.includes(`- ${globalKey}`));
+	assert.ok(!keyMessage.content.includes(projectKey));
+	const result = await client.bash(`printf '%s|%s' "$${globalKey}" "$${projectKey}"`);
+	assert.equal(result.output, "global-only|");
+});
